@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harvest-classifier"
+version = "0.1.0"
+description = "Shadow classifier for agent final messages: recommends what needs a human, and never acts."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Vishal Sachdev" }]
+keywords = ["agents", "orchestration", "classification", "shadow-mode"]
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Quality Assurance",
+]
+# No required dependencies: the provider is standard library only.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+# Only needed if your Python build has no usable CA bundle.
+tls = ["certifi"]
+
+[project.urls]
+Homepage = "https://github.com/vishalsachdev/harvest-classifier"
+Issues = "https://github.com/vishalsachdev/harvest-classifier/issues"
+
+[project.scripts]
+harvest-classifier = "harvest_classifier.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

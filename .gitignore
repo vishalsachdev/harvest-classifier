@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+shadow-log/
+config.toml
+AUDIT-before-publishing.md
+REVIEW-prepublication.md

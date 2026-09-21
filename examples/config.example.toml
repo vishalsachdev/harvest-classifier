@@ -1,0 +1,48 @@
+# harvest-classifier configuration.
+#
+# Copy to config.toml and edit. Every setting below is optional; the defaults
+# are chosen so that a fresh install classifies nothing and sends nothing.
+
+[agents]
+# Sessions that MAY be classified. Empty by default: nothing is sent until you
+# name a session here. Use the agent names your status files carry.
+allow = ["build-agent", "docs-agent"]
+
+# Sessions that may NEVER be classified, whatever else is configured. Deny
+# outranks allow, so a name in both lists is refused. Put anything whose final
+# messages can contain other people's data here, including any orchestrator
+# session that quotes the others.
+deny = ["orchestrator"]
+
+[status]
+# Where the producer writes status files. Default: ~/.claude/state/fleet
+# dir = "~/.claude/state/fleet"
+
+# A status file is trusted only while it is this fresh, measured from the
+# file's own updated_at rather than its mtime. Default: 900 seconds.
+# fresh_seconds = 900
+
+[guard]
+# Path prefixes that must never appear in a message the classifier sends.
+# Ships empty: add the directories that hold private material on your machine.
+private_path_prefixes = ["work/confidential"]
+
+# Pattern for an institutional login identifier. The default matches a short
+# lowercase handle with trailing digits, which is a common shape. Replace it
+# with whatever your institution issues, or set it to something that cannot
+# match if the rule does not apply to you.
+# institution_identifier = "(?<![A-Za-z0-9._-])[a-z]{2,8}\\d{1,4}(?![A-Za-z0-9._@-])"
+
+[provider]
+# Read the API key from this file instead of the TYPESAFE_API_KEY environment
+# variable. The file should be mode 600. The key is read at call time and is
+# never stored in memory beyond the request.
+# api_key_file = "~/.config/harvest-classifier/typesafe-key"
+
+# The model id is pinned so a result can be attributed to a specific model.
+# Change it deliberately, and re-run your fixtures when you do.
+# model = "jev-1.13.0"
+
+[log]
+# Where shadow rows are written. Default: ./shadow-log
+# dir = "./shadow-log"

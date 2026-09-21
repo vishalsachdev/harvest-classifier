@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harvest Classifier Pipeline</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1d1c1a; --muted: #605c56; --rule: #dcd8d0;
+    --card: #ffffff; --accent: #2f5d50; --egress: #a8442a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181a; --fg: #ececea; --muted: #a3a29e; --rule: #33353a;
+      --card: #1f2023; --accent: #7fb3a2; --egress: #e0876a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181a; --fg: #ececea; --muted: #a3a29e; --rule: #33353a;
+    --card: #1f2023; --accent: #7fb3a2; --egress: #e0876a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 0 16px 64px;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 40px 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  p.lede { color: var(--muted); margin-top: 0; }
+  figure { margin: 24px 0; background: var(--card); border: 1px solid var(--rule);
+           border-radius: 10px; padding: 16px; }
+  figure svg { width: 100%; height: auto; display: block; color: var(--fg); }
+  figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 12px; }
+  ol { padding-left: 1.2em; }
+  li { margin: 10px 0; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em;
+         background: color-mix(in srgb, var(--fg) 8%, transparent);
+         padding: 1px 5px; border-radius: 4px; }
+  .note { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule);
+           color: var(--muted); font-size: 0.9rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>How the harvest classifier decides</h1>
+  <p class="lede">A worker agent finishes a turn and leaves a final message. Most of
+  those messages need nothing from anyone. This pipeline decides which ones do, and
+  it stops at a recommendation.</p>
+
+  <figure>
+        <svg viewBox="0 0 400 770" role="img" aria-label="Pipeline from a worker session's final message to a recommendation row. Four local gates can each stop the message before anything is sent. Only one stage, the Jev model, sits outside the machine boundary.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            <marker id="ahe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--egress)"/></marker>
+          </defs>
+
+          <!-- 0 worker -->
+          <rect x="20" y="10" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="29" font-size="13" font-weight="600">Worker session ends a turn</text>
+          <text x="32" y="45" font-size="11" opacity=".75">its final message is the evidence</text>
+          <line x1="145" y1="54" x2="145" y2="80" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="153" y="71" font-size="10.5" class="m" opacity=".8">Stop hook writes</text>
+
+          <!-- 1 status file -->
+          <rect x="20" y="82" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="101" font-size="13" font-weight="600">Status file</text>
+          <text x="32" y="117" font-size="10.5" class="m" opacity=".75">state/fleet/agent.json, owner-only</text>
+          <line x1="145" y1="126" x2="145" y2="152" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="153" y="143" font-size="10.5" class="m" opacity=".8">read, never written</text>
+
+          <!-- 2 allow-list -->
+          <rect x="20" y="154" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="0"/>
+          <text x="32" y="173" font-size="13" font-weight="600">Gate 1: allow-list</text>
+          <text x="32" y="189" font-size="11" opacity=".75">named code sessions; deny-list wins</text>
+          <line x1="270" y1="176" x2="284" y2="176" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="290" y="171" font-size="10.5" opacity=".85">denied and</text>
+          <text x="290" y="185" font-size="10.5" opacity=".85">unknown: refused</text>
+          <line x1="145" y1="198" x2="145" y2="224" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- 3 freshness -->
+          <rect x="20" y="226" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="245" font-size="13" font-weight="600">Gate 2: fresh and current</text>
+          <text x="32" y="261" font-size="11" opacity=".75">under 15 minutes old, not yet seen</text>
+          <line x1="270" y1="248" x2="284" y2="248" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="290" y="243" font-size="10.5" opacity=".85">stale or repeat:</text>
+          <text x="290" y="257" font-size="10.5" opacity=".85">skipped</text>
+          <line x1="145" y1="270" x2="145" y2="296" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- 4 guard -->
+          <rect x="20" y="298" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="317" font-size="13" font-weight="600">Gate 3: pre-send guard</text>
+          <text x="32" y="333" font-size="11" opacity=".75">tokens, emails, institution ids, names near grades</text>
+          <line x1="270" y1="320" x2="284" y2="320" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="290" y="308" font-size="10.5" opacity=".85">hit: nothing sent,</text>
+          <text x="290" y="322" font-size="10.5" opacity=".85">only the category</text>
+          <text x="290" y="336" font-size="10.5" opacity=".85">is logged</text>
+          <line x1="145" y1="342" x2="145" y2="368" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- 5 deterministic -->
+          <rect x="20" y="370" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="389" font-size="13" font-weight="600">Deterministic checks</text>
+          <text x="32" y="405" font-size="11" opacity=".75">commit hash, "N passed", ends with "?"</text>
+          <line x1="270" y1="392" x2="284" y2="392" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="290" y="387" font-size="10.5" opacity=".85">settled in code:</text>
+          <text x="290" y="401" font-size="10.5" opacity=".85">no model call</text>
+
+          <!-- boundary + Jev -->
+          <line x1="145" y1="414" x2="145" y2="458" style="stroke:var(--egress)" stroke-width="1.6" marker-end="url(#ahe)"/>
+          <line x1="10" y1="436" x2="390" y2="436" style="stroke:var(--egress)" stroke-width="1" stroke-dasharray="5 4"/>
+          <text x="153" y="431" font-size="10.5" class="m" style="fill:var(--egress)">remainder leaves the machine</text>
+          <rect x="20" y="460" width="250" height="52" rx="3" style="fill:var(--egress);fill-opacity:.1;stroke:var(--egress)" stroke-width="1.6"/>
+          <text x="32" y="480" font-size="13" font-weight="600">Jev, typed judgment</text>
+          <text x="32" y="496" font-size="11" opacity=".8">6 yes/no probabilities + 1 choice</text>
+          <text x="32" y="507" font-size="10" class="m" opacity=".7">frozen questions, pinned version</text>
+          <text x="290" y="481" font-size="10.5" style="fill:var(--egress)">the only network</text>
+          <text x="290" y="495" font-size="10.5" style="fill:var(--egress)">hop; no fallback</text>
+          <line x1="10" y1="536" x2="390" y2="536" style="stroke:var(--egress)" stroke-width="1" stroke-dasharray="5 4"/>
+          <line x1="145" y1="512" x2="145" y2="558" style="stroke:var(--egress)" stroke-width="1.6" marker-end="url(#ahe)"/>
+          <text x="153" y="551" font-size="10.5" class="m" style="fill:var(--egress)">typed answers return</text>
+
+          <!-- 7 policy -->
+          <rect x="20" y="560" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="579" font-size="13" font-weight="600">Policy, pure code</text>
+          <text x="32" y="595" font-size="11" opacity=".75">combines code flags and model answers</text>
+          <line x1="145" y1="604" x2="145" y2="630" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- 8 row -->
+          <rect x="20" y="632" width="250" height="52" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="651" font-size="13" font-weight="600">Recommendation row</text>
+          <text x="32" y="667" font-size="10.5" class="m" opacity=".8">harvest / unblock / bounce /</text>
+          <text x="32" y="679" font-size="10.5" class="m" opacity=".8">escalate / ignore</text>
+          <text x="290" y="650" font-size="10.5" opacity=".85">a log line, never</text>
+          <text x="290" y="664" font-size="10.5" opacity=".85">an action; no</text>
+          <text x="290" y="678" font-size="10.5" opacity=".85">message text kept</text>
+          <line x1="145" y1="684" x2="145" y2="710" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- 9 report -->
+          <rect x="20" y="712" width="250" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="32" y="731" font-size="13" font-weight="600">Agreement report</text>
+          <text x="32" y="747" font-size="11" opacity=".75">recommended vs what you really did</text>
+          <line x1="284" y1="734" x2="272" y2="734" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="290" y="729" font-size="10.5" opacity=".85">you label the</text>
+          <text x="290" y="743" font-size="10.5" opacity=".85">own decision</text>
+        </svg>
+    <figcaption>Four local gates can each stop a message before anything leaves the
+    machine. Only one stage sits outside that boundary.</figcaption>
+  </figure>
+
+  <h2>The order matters</h2>
+  <ol>
+    <li><strong>Allow-list.</strong> Only sessions you have named may be classified,
+    and a deny entry outranks an allow entry. The list ships empty, so a fresh
+    install classifies nothing.</li>
+    <li><strong>Trust rule.</strong> A status file counts only while it is fresh,
+    measured from the file's own <code>updated_at</code> rather than its mtime, and
+    only while the session has not ended.</li>
+    <li><strong>Guard.</strong> Runs on allow-listed text too, because an
+    allow-listed session can still paste a token or quote a name. It blocks the
+    send, not just the row, and records category names only.</li>
+    <li><strong>Deterministic checks.</strong> Everything a regular expression can
+    settle is settled in code: a commit hash, a line such as <code>256 passed</code>,
+    a trailing question mark, a permission dialog. Roughly a third of the synthetic
+    fixtures never reach a model.</li>
+    <li><strong>The model, for the remainder.</strong> Six yes/no questions and one
+    choice over five actions, frozen by digest.</li>
+    <li><strong>Policy.</strong> Pure code. A message that claims completion without
+    evidence is never harvested, whatever the model chose.</li>
+  </ol>
+
+  <h2>What it will not do</h2>
+  <p class="note">There is no code path that prompts an agent, keys a terminal pane,
+  or drives a multiplexer, and a test parses the source to prove it. Text inside a
+  message is data: an instruction found there is recorded and otherwise ignored.
+  The output is a row in a log file, and a human reads it.</p>
+
+  <footer>
+    Part of <a href="../README.md">harvest-classifier</a>. Independent of, and not
+    endorsed by, TypeSafe AI or Anthropic.
+  </footer>
+</main>
+</body>
+</html>
