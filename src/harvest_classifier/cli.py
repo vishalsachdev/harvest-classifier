@@ -41,7 +41,7 @@ def _candidates(config: Config) -> list[dict[str, Any]]:
     out = []
     for path in iter_status_files(config.status_dir):
         rec = read_status(path)
-        if (rec and config.is_classifiable(rec.get("agent"))
+        if (rec and config.is_classifiable_record(rec)
                 and is_trustworthy(rec, config.fresh_seconds) and has_message(rec)):
             out.append(rec)
     return out
@@ -94,7 +94,7 @@ def cmd_harvest(args) -> int:
         total, failures = sweep()
         skipped = sorted({(read_status(p) or {}).get("agent") or p.stem
                           for p in iter_status_files(config.status_dir)
-                          if not config.is_classifiable((read_status(p) or {}).get("agent"))})
+                          if not config.is_classifiable_record(read_status(p) or {})})
         print(f"\nrows written: {total}")
         if skipped:
             print(f"not classifiable (allow-list): {skipped}")

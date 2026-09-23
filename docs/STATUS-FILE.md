@@ -34,7 +34,11 @@ Unknown extra fields are ignored by the reader.
 
 A record is used only when all of these hold:
 
-* the `agent` name is allow-listed and not deny-listed;
+* the `agent` name is allow-listed and not deny-listed. If the name is opaque,
+  a pane id or a session id rather than something a person chose, it is
+  resolved to the basename of `cwd` first, so a session started by hand is
+  still recognised;
+* `cwd` is not under a configured `deny_paths` entry;
 * `state` is not `ended`;
 * `updated_at` parses and is within `status.fresh_seconds`;
 * `last_assistant_text` is a non-empty string.

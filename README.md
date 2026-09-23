@@ -38,6 +38,7 @@ true.
 | Nothing in the package can drive a session. The source is parsed and rejected if it mentions pane keying, `send-keys`, `tmux` or similar. The check is AST aware, so prose may name them and code may not. | `tests/test_safety.py` |
 | A fresh install classifies nothing. The allow-list ships empty. | `tests/test_config.py` |
 | A deny entry outranks an allow entry, so a name in both is still refused. Matching is case-insensitive on both lists, so a differently cased allow entry cannot escape a deny entry. | `tests/test_config.py` |
+| A session working under a `deny_paths` directory is refused whatever it calls itself, and an opaque pane or session id is resolved from the working directory so a hand-started session is still recognised. | `tests/test_identity.py` |
 | The guard blocks the send, not just the log. A spy transport asserts it is never called when the guard fires. | `tests/test_classify.py` |
 | Message text never reaches the log. Rows are written through a field allow-list, so a caller cannot widen one by accident. | `tests/test_log.py` |
 | Instructions inside a message are data. A message containing an injection attempt is recorded and can never be harvested, whatever the model answers and whatever else the message shows. | `tests/test_review_regressions.py` |

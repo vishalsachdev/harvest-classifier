@@ -6,8 +6,15 @@
 Exactly one thing can leave: the text of a final message, sent to the TypeSafe
 API, and only when **all** of these are true.
 
-1. The session's name is in `[agents].allow` and not in `[agents].deny`.
-   The allow-list ships empty, so a fresh install sends nothing.
+1. The session's name is in `[agents].allow` and not in `[agents].deny`. The
+   allow-list ships empty, so a fresh install sends nothing. An opaque name, a
+   pane or session id rather than a chosen one, is resolved to the basename of
+   the session's working directory first.
+1b. The session's working directory is not under an `[agents].deny_paths`
+   entry. This is the stronger of the two controls, because a name cannot tell
+   you what a session is working on. If you have directories holding other
+   people's data, name them here rather than trying to enumerate every session
+   that might visit one.
 2. The status record is fresh and its session has not ended.
 3. The message is not empty.
 4. The pre-send guard found nothing: no email address, no token shaped string,

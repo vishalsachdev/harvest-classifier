@@ -83,7 +83,8 @@ def test_deterministic_settlement_skips_the_model():
         sent.append(payload)
         return dict(DEFAULT)
 
-    row = classify(rec("Claude needs your permission to continue"), spy, CONFIG)
+    row = classify(rec("carrying on", state="blocked",
+                       blocked_reason="permission_prompt"), spy, CONFIG)
     assert row["recommendation"] == "unblock"
     assert row["decided_by"] == "deterministic"
     assert sent == []

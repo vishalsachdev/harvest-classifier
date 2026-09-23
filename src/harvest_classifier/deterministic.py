@@ -70,7 +70,16 @@ def settles_without_a_model(flags: dict[str, bool]) -> str | None:
     Kept deliberately narrow: only cases where the text states the answer
     outright. Everything else is the model's remainder.
     """
-    if flags["is_blocked"] or flags["mentions_permission"]:
+    # Only the RECORD settles this. A permission mention in prose used to
+    # settle `unblock` on its own, so a session whose record said
+    # `state: working, blocked_reason: None` was recommended for unblocking
+    # because its final message happened to discuss permission dialogs
+    # (found by labelling a real row, 2026-09-23).
+    #
+    # The mention stays in the flags and reaches the model, which is where a
+    # judgement about prose belongs: a denied permission request fires no
+    # event at all, so the text is sometimes the only signal there is.
+    if flags["is_blocked"]:
         return "unblock"
     if flags["needs_owner"]:
         return "escalate_to_owner"

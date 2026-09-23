@@ -29,9 +29,10 @@ def classify(
     is injected so the whole suite runs offline; None means deterministic-only.
     """
     config = config or Config()
-    agent = rec.get("agent")
-    if not config.is_classifiable(agent):
+    if not config.is_classifiable_record(rec):
         return None
+    from .identity import resolve_agent
+    agent = resolve_agent(rec)
     if not status.is_trustworthy(rec, config.fresh_seconds) or not status.has_message(rec):
         return None
 

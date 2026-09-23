@@ -48,7 +48,8 @@ def _answers(**kw):
 
 
 def test_deterministic_check_wins_where_it_applies():
-    flags = check("a permission dialog is open")
+    flags = check("a permission dialog is open", state="blocked",
+                  blocked_reason="permission_prompt")
     out = recommend(flags, _answers(next_action="harvest"))
     assert out["recommendation"] == "unblock"
     assert out["decided_by"] == "deterministic"
@@ -121,12 +122,23 @@ def test_embedded_instruction_fixtures_never_reach_harvest_deterministically():
 
 @pytest.mark.parametrize(
     "fixture",
-    [f for f in FIXTURES if "blocked" in f["tags"]
-     and check(f["text"])["mentions_permission"]],
+    [f for f in FIXTURES if "blocked" in f["tags"]],
     ids=lambda f: f["id"])
-def test_permission_blocked_fixtures_are_settled_without_a_model(fixture):
+def test_blocked_fixtures_go_to_the_model_unless_the_record_says_blocked(fixture):
+    """Text alone no longer settles `unblock`.
+
+    Deciding that a message describing a permission dialog IS a blocked
+    session, rather than prose about one, is a judgement, and judgements go to
+    the model. The record settles it when the record knows (2026-09-23).
+    """
     from harvest_classifier.deterministic import settles_without_a_model
-    assert settles_without_a_model(check(fixture["text"])) == "unblock"
+    assert settles_without_a_model(check(fixture["text"])) is None
+
+
+def test_the_record_settles_unblock_without_any_text(fixture_free=None):
+    from harvest_classifier.deterministic import settles_without_a_model
+    flags = check("anything at all", state="blocked", blocked_reason="permission_prompt")
+    assert settles_without_a_model(flags) == "unblock"
 
 
 def test_a_block_with_no_permission_wording_is_left_to_the_model():

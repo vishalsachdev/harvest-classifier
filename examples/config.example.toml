@@ -14,6 +14,17 @@ allow = ["build-agent", "docs-agent"]
 # session that quotes the others.
 deny = ["orchestrator"]
 
+# Directory names whose contents must never be classified, whatever a session
+# calls itself. This is the stronger control: a name cannot tell you that a
+# session is sitting in a directory full of other people's data, and a session
+# that was started by hand often reports a pane or session id rather than a
+# name at all. Matched as whole path components, so "private" does not match
+# "private-notes". Ships empty.
+#
+# Once this is set, a record with no cwd is refused, because there is nothing
+# to check it against.
+deny_paths = ["confidential", "customer-data"]
+
 [status]
 # Where the producer writes status files. Default: ~/.claude/state/fleet
 # dir = "~/.claude/state/fleet"

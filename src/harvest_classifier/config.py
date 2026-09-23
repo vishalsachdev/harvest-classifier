@@ -28,7 +28,7 @@ DEFAULT_FRESH_SECONDS = 900
 DEFAULT_INSTITUTION_IDENTIFIER = r"(?<![A-Za-z0-9._-])[a-z]{2,8}\d{1,4}(?![A-Za-z0-9._@-])"
 
 _SCHEMA: dict[str, dict[str, type]] = {
-    "agents": {"allow": list, "deny": list},
+    "agents": {"allow": list, "deny": list, "deny_paths": list},
     "status": {"dir": str, "fresh_seconds": int},
     "guard": {"private_path_prefixes": list, "institution_identifier": str},
     "provider": {"api_key_file": str, "model": str},
@@ -51,6 +51,9 @@ class Config:
     #: Checked first: a denied name can never be classified, even if it also
     #: appears in the allow-list.
     deny_list: frozenset[str] = frozenset()
+    #: Directory names whose contents must never be classified, whatever a
+    #: session calls itself. Ships empty.
+    deny_paths: tuple[str, ...] = ()
     status_dir: pathlib.Path = DEFAULT_STATUS_DIR
     fresh_seconds: int = DEFAULT_FRESH_SECONDS
     private_path_prefixes: tuple[str, ...] = ()
@@ -72,6 +75,18 @@ class Config:
         if folded in {name.casefold() for name in self.deny_list}:
             return False
         return folded in {name.casefold() for name in self.allow_list}
+
+    def is_classifiable_record(self, rec: dict[str, Any]) -> bool:
+        """Whole-record check. Prefer this wherever a record is available.
+
+        Resolves an opaque name from the working directory, then refuses a
+        session working under a denied path whatever it reports.
+        """
+        from .identity import resolve_agent, under_denied_path
+
+        if under_denied_path(rec.get("cwd"), self.deny_paths):
+            return False
+        return self.is_classifiable(resolve_agent(rec))
 
     def read_api_key(self) -> str:
         """Read the key at call time. Never stored on the instance.
@@ -179,6 +194,7 @@ def load_config(path: str | pathlib.Path | None) -> Config:
         config,
         allow_list=_check_names("agents", "allow", agents.get("allow", [])),
         deny_list=_check_names("agents", "deny", agents.get("deny", [])),
+        deny_paths=tuple(agents.get("deny_paths", ())),
         status_dir=_expand(status["dir"]) if "dir" in status else config.status_dir,
         fresh_seconds=status.get("fresh_seconds", config.fresh_seconds),
         private_path_prefixes=tuple(guard.get("private_path_prefixes", ())),

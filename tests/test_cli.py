@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from harvest_classifier.cli import main
 
 
-def write_status(d, agent, text, session="s1"):
+def write_status(d, agent, text, session="s1", STATE="idle", BLOCKED=None):
     (d / f"{agent}.json").write_text(json.dumps({
         "schema_version": 1, "agent": agent, "session_id": session,
-        "state": "idle", "event": "Stop",
+        "state": STATE, "event": "Stop", "blocked_reason": BLOCKED,
         "updated_at": datetime.now(timezone.utc).astimezone().isoformat(),
-        "last_assistant_text": text, "blocked_reason": None}))
+        "last_assistant_text": text}))
 
 
 def setup(tmp_path, allow=("build-agent",), deny=("orchestrator",)):
@@ -36,7 +36,8 @@ def test_a_default_install_refuses_to_run_with_an_empty_allow_list(tmp_path, cap
 
 def test_once_writes_rows_only_for_allow_listed_agents(tmp_path):
     status, config, log_path = setup(tmp_path)
-    write_status(status, "build-agent", "the approval prompt is waiting")
+    write_status(status, "build-agent", "the approval prompt is waiting",
+                 STATE="blocked", BLOCKED="permission_prompt")
     write_status(status, "orchestrator", "everything is fine")
     write_status(status, "stranger", "also fine")
     assert harvest(config) == 0
@@ -53,7 +54,8 @@ def test_a_denied_agent_is_refused_even_when_also_allowed(tmp_path):
 
 def test_once_is_idempotent_on_the_same_status(tmp_path):
     status, config, log_path = setup(tmp_path)
-    write_status(status, "build-agent", "a permission dialog is open")
+    write_status(status, "build-agent", "a permission dialog is open",
+                 STATE="blocked", BLOCKED="permission_prompt")
     harvest(config)
     harvest(config)
     assert len(log_path.read_text().strip().splitlines()) == 1
@@ -62,10 +64,12 @@ def test_once_is_idempotent_on_the_same_status(tmp_path):
 def test_a_new_turn_is_a_new_row(tmp_path):
     import time
     status, config, log_path = setup(tmp_path)
-    write_status(status, "build-agent", "a permission dialog is open")
+    write_status(status, "build-agent", "a permission dialog is open",
+                 STATE="blocked", BLOCKED="permission_prompt")
     harvest(config)
     time.sleep(0.01)
-    write_status(status, "build-agent", "now waiting on approval instead")
+    write_status(status, "build-agent", "now waiting on approval instead",
+                 STATE="blocked", BLOCKED="permission_prompt")
     harvest(config)
     assert len(log_path.read_text().strip().splitlines()) == 2
 
@@ -88,7 +92,8 @@ def test_no_api_key_is_needed_for_a_dry_run(tmp_path, monkeypatch):
 
 def test_label_then_report_computes_agreement(tmp_path, capsys):
     status, config, _ = setup(tmp_path)
-    write_status(status, "build-agent", "a permission dialog is open")
+    write_status(status, "build-agent", "a permission dialog is open",
+                 STATE="blocked", BLOCKED="permission_prompt")
     harvest(config)
     assert main(["--config", str(config), "shadow-label", "build-agent", "unblock"]) == 0
     main(["--config", str(config), "shadow-report"])
